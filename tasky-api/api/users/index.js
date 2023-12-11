@@ -9,16 +9,31 @@ router.get('/', async (req, res) => {
     res.status(200).json(users);
 });
 
-// register(Create)/Authenticate User
+// Register (Create) / Authenticate User with direct error handling
 router.post('/', async (req, res) => {
-    if (req.query.action === 'register') {  //if action is 'register' then save to DB
-        await User(req.body).save();
-        res.status(201).json({
-            code: 201,
-            msg: 'Successful created new user.',
-        });
-    }
-    else {  //Must be an authenticate then!!! Query the DB and check if there's a match
+    if (req.query.action === 'register') {
+        try {
+            const user = new User(req.body);
+            await user.save();
+            res.status(201).json({
+                code: 201,
+                msg: 'Successfully created new user.',
+                user
+            });
+        } catch (error) {
+            if (error.name === 'ValidationError') {
+                res.status(400).json({
+                    code: 400,
+                    msg: 'Validation error: ' + error.message
+                });
+            } else {
+                res.status(500).json({
+                    code: 500,
+                    msg: 'Internal server error: ' + error.message
+                });
+            }
+        }
+    } else { //Must be an authenticate then!!! Query the DB and check if there's a match
         const user = await User.findOne(req.body);
         if (!user) {
             return res.status(401).json({ code: 401, msg: 'Authentication failed' });
