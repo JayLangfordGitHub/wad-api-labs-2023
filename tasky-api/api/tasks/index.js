@@ -1,65 +1,43 @@
 import express from 'express';
-import { tasksData } from './tasksData';
-import { v4 as uuidv4 } from 'uuid';
+import Task from './taskModel';
 
-const router = express.Router();
+const router = express.Router(); // eslint-disable-line
 
-// Create a new task
-router.post('/', (req, res) => {
-    // Create a new task object with a unique ID and timestamps
-    const newTask = {
-        id: uuidv4(),
-        ...req.body,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-    };
-
-    // Add the new task to the tasks array
-    tasksData.tasks.push(newTask);
-    
-    // Send the new task back in the response
-    res.status(201).json(newTask);
+// Get all tasks
+router.get('/', async (req, res) => {
+    const tasks = await Task.find();
+    res.status(200).json(tasks);
 });
 
-// Get task details
-router.get('/:id', (req, res) => {
-    const { id } = req.params;
-    const task = tasksData.tasks.find(task => task.id === id);
-    if (!task) {
-        return res.status(404).json({ status: 404, message: 'Task not found' });
+// create a task
+router.post('/', async (req, res) => {
+    const task = await Task(req.body).save();
+    res.status(201).json(task);
+});
+
+// Update Task
+router.put('/:id', async (req, res) => {
+    if (req.body._id) delete req.body._id;
+    const result = await Task.updateOne({
+        _id: req.params.id,
+    }, req.body);
+    if (result.matchedCount) {
+        res.status(200).json({ code:200, msg: 'Task Updated Sucessfully' });
+    } else {
+        res.status(404).json({ code: 404, msg: 'Unable to find Task' });
     }
-    return res.status(200).json(task);
 });
 
-// Update an existing task
-router.put('/:id', (req, res) => {
-    const { id } = req.params;
-    const taskIndex = tasksData.tasks.findIndex(task => task.id === id);
-    if (taskIndex === -1) {
-        return res.status(404).json({ status: 404, message: 'Task not found' });
+// delete Task
+router.delete('/:id', async (req, res) => {
+    if (req.body._id) delete req.body._id;
+    const result = await Task.deleteOne({
+        _id: req.params.id,
+    });
+    if (result.deletedCount) {
+        res.status(204).json();
+    } else {
+        res.status(404).json({ code: 404, msg: 'Unable to find Task' });
     }
-    
-    // Update the task and modify the updated_at timestamp
-    const updatedTask = {
-        ...tasksData.tasks[taskIndex],
-        ...req.body,
-        id: id,
-        updated_at: new Date().toISOString() // Set updated_at to the current time
-    };
-    tasksData.tasks[taskIndex] = updatedTask;
-    
-    res.json(updatedTask);
 });
-
-// Delete a task
-router.delete('/:id', (req, res) => {
-    const { id } = req.params;
-    const taskIndex = tasksData.tasks.findIndex(task => task.id === id);
-    
-    if (taskIndex === -1) return res.status(404).json({ status: 404, message: 'Task not found' });
-    tasksData.tasks.splice(taskIndex, 1);
-    res.status(204).send();
-    tasksData.total_results--;
-});
-
 export default router;
